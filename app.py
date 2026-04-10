@@ -46,43 +46,7 @@ st.markdown("""
     input { -webkit-user-select: text !important; user-select: text !important; }
     footer, header, #MainMenu { visibility: hidden; }
 
-    /* ABSOLUTE FORCE: Keep Master Row horizontal */
-    .master-row [data-testid="stHorizontalBlock"] {
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        align-items: center !important;
-        gap: 0px !important;
-    }
-    
-    /* Column 1 (Checkbox): Takes up remaining space */
-    .master-row [data-testid="column"]:nth-of-type(1) {
-        flex: 1 1 auto !important;
-        width: auto !important;
-        min-width: 0 !important;
-    }
-
-    /* Column 2 (Delete Button): Locked to exactly 35px */
-    .master-row [data-testid="column"]:nth-of-type(2) {
-        flex: 0 0 35px !important;
-        width: 35px !important;
-        min-width: 35px !important;
-        padding-left: 5px !important;
-    }
-
-    /* The 'X' Button: Make it much smaller */
-    .master-row button {
-        width: 24px !important;
-        height: 24px !important;
-        min-height: 24px !important;
-        padding: 0 !important;
-        font-size: 12px !important;
-        border-radius: 4px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-
-    /* Checkbox spacing */
+    /* Checkbox spacing to keep lists tight and clean */
     .stCheckbox label p { 
         font-size: 1.1rem !important; 
         margin-bottom: 0px !important; 
@@ -90,6 +54,9 @@ st.markdown("""
     .stCheckbox {
         margin-bottom: -10px !important;
     }
+    
+    /* Clean up the delete button when in edit mode */
+    .stButton button { padding: 0 !important; height: 2.2em; border-radius: 6px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -130,7 +97,13 @@ else:
 
 # --- 8. DISPLAY: MASTER ---
 st.header("🏁 Master")
-search_query = st.text_input("🔍 Search Master List", placeholder="Type...").lower()
+
+# Search and Edit Toggle sit next to each other
+col_search, col_edit = st.columns([0.65, 0.35], gap="small")
+with col_search:
+    search_query = st.text_input("🔍 Search Master List", placeholder="Type...", label_visibility="collapsed").lower()
+with col_edit:
+    edit_mode = st.toggle("✏️ Edit")
 
 all_master = [i for i in st.session_state.shopping_list if i['checked']]
 if search_query:
@@ -144,23 +117,24 @@ if not master_items:
     st.caption("No items found.")
 else:
     for entry in master_items:
-        st.markdown('<div class="master-row">', unsafe_allow_html=True)
-        # The CSS above now strictly controls the width of these columns,
-        # so the ratio we pass here is mostly ignored.
-        c_item, c_del = st.columns([0.85, 0.15])
+        label = f"**{entry['item']}** — {entry['category']}"
         
-        with c_item:
-            label = f"**{entry['item']}** — {entry['category']}"
+        if edit_mode:
+            # When Edit Mode is ON: Show the checkbox and the X button
+            c_item, c_del = st.columns([0.85, 0.15], gap="small")
+            with c_item:
+                if not st.checkbox(label, value=True, key=f"m_chk_edit_{entry['item']}"):
+                    entry['checked'] = False
+                    save_data(); st.rerun()
+            with c_del:
+                if st.button("❌", key=f"m_del_{entry['item']}", use_container_width=True):
+                    st.session_state.shopping_list = [i for i in st.session_state.shopping_list if i != entry]
+                    save_data(); st.rerun()
+        else:
+            # When Edit Mode is OFF: Pure, clean list
             if not st.checkbox(label, value=True, key=f"m_chk_{entry['item']}"):
                 entry['checked'] = False
                 save_data(); st.rerun()
-                
-        with c_del:
-            if st.button("❌", key=f"m_del_{entry['item']}"):
-                st.session_state.shopping_list = [i for i in st.session_state.shopping_list if i != entry]
-                save_data(); st.rerun()
-                
-        st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 9. CLEAR ALL ---
 if st.session_state.shopping_list:
