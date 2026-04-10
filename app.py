@@ -36,31 +36,27 @@ def save_data():
     with open(FILE_NAME, "w") as f:
         json.dump(st.session_state.shopping_list, f)
 
-# --- 3. APP SETUP & SELECTIVE CSS ---
+# --- 3. APP SETUP & CSS ---
 st.set_page_config(page_title="NZ Smart Shop", page_icon="🛒")
 
 st.markdown("""
     <style>
-    /* Global Cleanliness */
+    /* Global Mobile Tweaks */
     * { -webkit-user-select: none; user-select: none; }
     input { -webkit-user-select: text !important; user-select: text !important; }
     footer, header, #MainMenu { visibility: hidden; }
 
-    /* ONLY apply horizontal force to the shopping rows (Today/Master) */
-    /* This prevents the "Add New Item" section from squishing */
+    /* The "Shopping Row" keeps checkbox and X on one line */
     .shopping-row [data-testid="stHorizontalBlock"] {
         flex-wrap: nowrap !important;
         align-items: center !important;
+        gap: 0px !important;
     }
-
     .shopping-row [data-testid="column"] {
         min-width: 0 !important;
     }
 
-    /* Checkbox text size */
     .stCheckbox label p { font-size: 1.1rem !important; }
-
-    /* Delete button styling */
     .stButton button { padding: 0 !important; height: 2.5em; border-radius: 8px; }
     </style>
 """, unsafe_allow_html=True)
@@ -72,9 +68,8 @@ if 'shopping_list' not in st.session_state:
 store_choice = st.selectbox("Where are you today?", list(STORE_LAYOUTS.keys()))
 current_layout = STORE_LAYOUTS[store_choice]
 
-# --- 5. ADD ITEM SECTION (FIXED: NOW STACKS) ---
+# --- 5. ADD ITEM SECTION ---
 with st.expander("➕ Add New Item", expanded=False):
-    # Standard columns here will stack on mobile because they aren't wrapped in 'shopping-row'
     new_item = st.text_input("Item Name")
     category = st.selectbox("Aisle", current_layout)
     if st.button("Add to List", use_container_width=True):
@@ -94,21 +89,20 @@ today_items = sort_by_layout([i for i in st.session_state.shopping_list if not i
 if not today_items:
     st.info("Basket is empty.")
 else:
-    # Wrapping rows in a div with class 'shopping-row' to trigger the CSS fix
-    st.markdown('<div class="shopping-row">', unsafe_allow_html=True)
     for entry in today_items:
+        # We wrap each individual row to keep it safe
+        st.markdown('<div class="shopping-row">', unsafe_allow_html=True)
         label = f"**{entry['item']}** — {entry['category']}"
         if st.checkbox(label, value=False, key=f"today_{entry['item']}"):
             entry['checked'] = True
             save_data()
             st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 8. DISPLAY: MASTER ---
 st.header("🏁 Master")
 search_query = st.text_input("🔍 Search Master List", placeholder="Type...").lower()
 
-# Get master items and filter them
 all_master = [i for i in st.session_state.shopping_list if i['checked']]
 if search_query:
     master_items = [i for i in all_master if search_query in i['item'].lower() or search_query in i['category'].lower()]
@@ -120,30 +114,26 @@ master_items = sort_by_layout(master_items)
 if not master_items:
     st.caption("No items found.")
 else:
-    st.markdown('<div class="shopping-row">', unsafe_allow_html=True)
     for entry in master_items:
+        st.markdown('<div class="shopping-row">', unsafe_allow_html=True)
         col_item, col_del = st.columns([0.85, 0.15])
-        
         with col_item:
             label = f"~~**{entry['item']}** — {entry['category']}~~"
-            # Using a safer toggle logic to prevent state errors
-            if not st.checkbox(label, value=True, key=f"master_check_{entry['item']}"):
+            if not st.checkbox(label, value=True, key=f"m_chk_{entry['item']}"):
                 entry['checked'] = False
-                save_data()
-                st.rerun()
-                
+                save_data(); st.rerun()
         with col_del:
-            if st.button("❌", key=f"del_btn_{entry['item']}", use_container_width=True):
-                # Safer removal using list comprehension to avoid mutation errors
+            if st.button("❌", key=f"m_del_{entry['item']}", use_container_width=True):
                 st.session_state.shopping_list = [i for i in st.session_state.shopping_list if i != entry]
-                save_data()
-                st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+                save_data(); st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 9. CLEAR ALL ---
+# --- 9. CLEAR ALL (Fixed Placement) ---
 if st.session_state.shopping_list:
+    st.write("") # Spacer
     st.divider()
-    if st.button("Clear Everything"):
+    # Button is OUTSIDE of any 'shopping-row' div to prevent layout errors
+    if st.button("🗑️ Clear Everything", use_container_width=True):
         st.session_state.shopping_list = []
         save_data()
         st.rerun()
