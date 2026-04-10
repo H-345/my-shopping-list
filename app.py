@@ -79,6 +79,11 @@ st.markdown(f"""
         margin-bottom: -12px !important;
     }}
     
+    /* Ensure the Selectbox doesn't have too much top margin after the custom heading */
+    [data-testid="stSelectbox"] {{
+        margin-top: -10px !important;
+    }}
+
     .stButton button {{
         border-radius: 8px;
     }}
@@ -88,10 +93,10 @@ st.markdown(f"""
 if 'shopping_list' not in st.session_state:
     st.session_state.shopping_list = load_data()
 
-# --- 4. STORE SELECTION (UPDATED TO HEADING STYLE) ---
-st.markdown('''
+# --- 4. STORE SELECTION ---
+st.markdown(f'''
     <div class="section-container">
-        <span style="font-size: 24px;">🏪</span>
+        {get_image_html("Cart.png")}
         <p class="section-title">Where are you today?</p>
     </div>
 ''', unsafe_allow_html=True)
