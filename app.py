@@ -55,13 +55,13 @@ st.markdown(f"""
     }}
     footer, header, #MainMenu {{ visibility: hidden; }}
 
-    /* Standardized Section Headers */
+    /* Unified Section Headers */
     .section-container {{
         display: flex;
         align-items: center;
         gap: 10px;
         margin-top: 25px;
-        margin-bottom: 5px;
+        margin-bottom: 12px !important; /* Fixed spacing for all headers */
     }}
     .section-title {{
         font-size: 24px !important;
@@ -70,18 +70,17 @@ st.markdown(f"""
         color: #31333F;
     }}
 
-    /* Tighten checkbox spacing */
+    /* Remove default top margins from all input widgets to ensure equal spacing */
+    [data-testid="stSelectbox"], [data-testid="stTextInput"], [data-testid="stVerticalBlockBorderWrapper"] {{
+        margin-top: 0px !important;
+    }}
+    
     .stCheckbox label p {{ 
         font-size: 1.15rem !important; 
         margin-bottom: 0px !important; 
     }}
     .stCheckbox {{
         margin-bottom: -12px !important;
-    }}
-    
-    /* Ensure the Selectbox doesn't have too much top margin after the custom heading */
-    [data-testid="stSelectbox"] {{
-        margin-top: -10px !important;
     }}
 
     .stButton button {{
@@ -149,7 +148,10 @@ col_search, col_edit = st.columns([0.65, 0.35])
 with col_search:
     search_query = st.text_input("Search", placeholder="Type...", label_visibility="collapsed").lower()
 with col_edit:
+    # Toggle height alignment
+    st.markdown('<div style="margin-top: 5px;">', unsafe_allow_html=True)
     edit_mode = st.toggle("Edit Mode")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 all_master = [i for i in st.session_state.shopping_list if i['checked']]
 master_items = [i for i in all_master if not search_query or search_query in i['item'].lower() or search_query in i['category'].lower()]
