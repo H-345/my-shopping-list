@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 import os
+import base64
 
 # --- 1. CONFIGURATION ---
 STORE_LAYOUTS = {
@@ -36,27 +37,59 @@ def save_data():
     with open(FILE_NAME, "w") as f:
         json.dump(st.session_state.shopping_list, f)
 
-# --- 3. APP SETUP & CSS ---
+# Helper to render local PNG icons
+def get_image_base64(path):
+    with open(path, "rb") as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
+
+# --- 3. APP SETUP & STYLING ---
 st.set_page_config(page_title="NZ Smart Shop", page_icon="🛒")
 
-st.markdown("""
+# Custom UI Styling
+st.markdown(f"""
     <style>
-    /* Global Cleanliness */
-    * { -webkit-user-select: none; user-select: none; }
-    input { -webkit-user-select: text !important; user-select: text !important; }
-    footer, header, #MainMenu { visibility: hidden; }
+    /* Background and Content Container */
+    .stApp {{
+        background-color: #f1efea;
+    }}
+    
+    /* Clean up the mobile header/footer */
+    footer, header, #MainMenu {{ visibility: hidden; }}
 
-    /* Checkbox spacing to keep lists tight and clean */
-    .stCheckbox label p { 
+    /* Section Headers with Icons */
+    .section-header {{
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 20px;
+        margin-bottom: 10px;
+    }}
+    .section-header img {{
+        width: 32px;
+        height: 32px;
+    }}
+    .section-header h2 {{
+        margin: 0;
+        font-size: 1.8rem;
+        color: #31333F;
+    }}
+
+    /* Tighten checkbox spacing */
+    .stCheckbox label p {{ 
         font-size: 1.1rem !important; 
         margin-bottom: 0px !important; 
-    }
-    .stCheckbox {
-        margin-bottom: -10px !important;
-    }
+        color: #31333F;
+    }}
+    .stCheckbox {{
+        margin-bottom: -12px !important;
+    }}
     
-    /* Clean up the delete button when in edit mode */
-    .stButton button { padding: 0 !important; height: 2.2em; border-radius: 6px; }
+    /* Custom button style */
+    .stButton button {{
+        border-radius: 8px;
+        border: 1px solid #d1d1d1;
+    }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -73,7 +106,7 @@ with st.expander("➕ Add New Item", expanded=False):
     category = st.selectbox("Aisle", current_layout)
     if st.button("Add to List", use_container_width=True):
         if new_item:
-            st.session_state.shopping_list.append({"item": new_item, "category": category, "checked": False})
+            st.session_state.shopping_list.append({{"item": new_item, "category": category, "checked": False}})
             save_data()
             st.rerun()
 
@@ -82,7 +115,14 @@ def sort_by_layout(items):
     return sorted(items, key=lambda x: current_layout.index(x['category']) if x['category'] in current_layout else 999)
 
 # --- 7. DISPLAY: TODAY ---
-st.header("📍 Today")
+today_icon = get_image_base64("Today.png")
+st.markdown(f'''
+    <div class="section-header">
+        <img src="data:image/png;base64,{today_icon}">
+        <h2>Today</h2>
+    </div>
+''', unsafe_allow_html=True)
+
 today_items = sort_by_layout([i for i in st.session_state.shopping_list if not i['checked']])
 
 if not today_items:
@@ -96,14 +136,20 @@ else:
             st.rerun()
 
 # --- 8. DISPLAY: MASTER ---
-st.header("🏁 Master")
+master_icon = get_image_base64("Master.png")
+st.markdown(f'''
+    <div class="section-header">
+        <img src="data:image/png;base64,{master_icon}">
+        <h2>Master</h2>
+    </div>
+''', unsafe_allow_html=True)
 
-# Search and Edit Toggle sit next to each other
-col_search, col_edit = st.columns([0.65, 0.35], gap="small")
+# Search and Edit Layout
+col_search, col_edit = st.columns([0.65, 0.35])
 with col_search:
-    search_query = st.text_input("🔍 Search Master List", placeholder="Type...", label_visibility="collapsed").lower()
+    search_query = st.text_input("Search", placeholder="Type...", label_visibility="collapsed").lower()
 with col_edit:
-    edit_mode = st.toggle("✏️ Edit")
+    edit_mode = st.toggle("Edit Mode")
 
 all_master = [i for i in st.session_state.shopping_list if i['checked']]
 if search_query:
@@ -120,10 +166,9 @@ else:
         label = f"**{entry['item']}** — {entry['category']}"
         
         if edit_mode:
-            # When Edit Mode is ON: Show the checkbox and the X button
-            c_item, c_del = st.columns([0.85, 0.15], gap="small")
+            c_item, c_del = st.columns([0.85, 0.15])
             with c_item:
-                if not st.checkbox(label, value=True, key=f"m_chk_edit_{entry['item']}"):
+                if not st.checkbox(label, value=True, key=f"m_edit_{entry['item']}"):
                     entry['checked'] = False
                     save_data(); st.rerun()
             with c_del:
@@ -131,8 +176,7 @@ else:
                     st.session_state.shopping_list = [i for i in st.session_state.shopping_list if i != entry]
                     save_data(); st.rerun()
         else:
-            # When Edit Mode is OFF: Pure, clean list
-            if not st.checkbox(label, value=True, key=f"m_chk_{entry['item']}"):
+            if not st.checkbox(label, value=True, key=f"m_view_{entry['item']}"):
                 entry['checked'] = False
                 save_data(); st.rerun()
 
