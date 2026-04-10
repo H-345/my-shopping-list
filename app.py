@@ -37,58 +37,50 @@ def save_data():
     with open(FILE_NAME, "w") as f:
         json.dump(st.session_state.shopping_list, f)
 
-# Helper to render local PNG icons
-def get_image_base64(path):
-    with open(path, "rb") as f:
-        data = f.read()
-    return base64.b64encode(data).decode()
+def get_image_html(image_path):
+    if os.path.exists(image_path):
+        with open(image_path, "rb") as f:
+            contents = f.read()
+        data_url = base64.b64encode(contents).decode("utf-8")
+        return f'<img src="data:image/png;base64,{data_url}" width="30">'
+    return "🛒"
 
 # --- 3. APP SETUP & STYLING ---
 st.set_page_config(page_title="NZ Smart Shop", page_icon="🛒")
 
-# Custom UI Styling
 st.markdown(f"""
     <style>
-    /* Background and Content Container */
     .stApp {{
         background-color: #f1efea;
     }}
-    
-    /* Clean up the mobile header/footer */
     footer, header, #MainMenu {{ visibility: hidden; }}
 
-    /* Section Headers with Icons */
-    .section-header {{
+    /* Standardized Section Headers */
+    .section-container {{
         display: flex;
         align-items: center;
-        gap: 12px;
-        margin-top: 20px;
-        margin-bottom: 10px;
+        gap: 10px;
+        margin-top: 25px;
+        margin-bottom: 5px;
     }}
-    .section-header img {{
-        width: 32px;
-        height: 32px;
-    }}
-    .section-header h2 {{
-        margin: 0;
-        font-size: 1.8rem;
+    .section-title {{
+        font-size: 24px !important;
+        font-weight: 700;
+        margin: 0 !important;
         color: #31333F;
     }}
 
     /* Tighten checkbox spacing */
     .stCheckbox label p {{ 
-        font-size: 1.1rem !important; 
+        font-size: 1.15rem !important; 
         margin-bottom: 0px !important; 
-        color: #31333F;
     }}
     .stCheckbox {{
         margin-bottom: -12px !important;
     }}
     
-    /* Custom button style */
     .stButton button {{
         border-radius: 8px;
-        border: 1px solid #d1d1d1;
     }}
     </style>
 """, unsafe_allow_html=True)
@@ -96,8 +88,15 @@ st.markdown(f"""
 if 'shopping_list' not in st.session_state:
     st.session_state.shopping_list = load_data()
 
-# --- 4. STORE SELECTION ---
-store_choice = st.selectbox("Where are you today?", list(STORE_LAYOUTS.keys()))
+# --- 4. STORE SELECTION (UPDATED TO HEADING STYLE) ---
+st.markdown('''
+    <div class="section-container">
+        <span style="font-size: 24px;">🏪</span>
+        <p class="section-title">Where are you today?</p>
+    </div>
+''', unsafe_allow_html=True)
+
+store_choice = st.selectbox("Store Select", list(STORE_LAYOUTS.keys()), label_visibility="collapsed")
 current_layout = STORE_LAYOUTS[store_choice]
 
 # --- 5. ADD ITEM SECTION ---
@@ -106,7 +105,7 @@ with st.expander("➕ Add New Item", expanded=False):
     category = st.selectbox("Aisle", current_layout)
     if st.button("Add to List", use_container_width=True):
         if new_item:
-            st.session_state.shopping_list.append({{"item": new_item, "category": category, "checked": False}})
+            st.session_state.shopping_list.append({"item": new_item, "category": category, "checked": False})
             save_data()
             st.rerun()
 
@@ -115,11 +114,10 @@ def sort_by_layout(items):
     return sorted(items, key=lambda x: current_layout.index(x['category']) if x['category'] in current_layout else 999)
 
 # --- 7. DISPLAY: TODAY ---
-today_icon = get_image_base64("Today.png")
 st.markdown(f'''
-    <div class="section-header">
-        <img src="data:image/png;base64,{today_icon}">
-        <h2>Today</h2>
+    <div class="section-container">
+        {get_image_html("Today.png")}
+        <p class="section-title">Today</p>
     </div>
 ''', unsafe_allow_html=True)
 
@@ -132,19 +130,16 @@ else:
         label = f"**{entry['item']}** — {entry['category']}"
         if st.checkbox(label, value=False, key=f"today_{entry['item']}"):
             entry['checked'] = True
-            save_data()
-            st.rerun()
+            save_data(); st.rerun()
 
 # --- 8. DISPLAY: MASTER ---
-master_icon = get_image_base64("Master.png")
 st.markdown(f'''
-    <div class="section-header">
-        <img src="data:image/png;base64,{master_icon}">
-        <h2>Master</h2>
+    <div class="section-container">
+        {get_image_html("Master.png")}
+        <p class="section-title">Master</p>
     </div>
 ''', unsafe_allow_html=True)
 
-# Search and Edit Layout
 col_search, col_edit = st.columns([0.65, 0.35])
 with col_search:
     search_query = st.text_input("Search", placeholder="Type...", label_visibility="collapsed").lower()
@@ -152,11 +147,7 @@ with col_edit:
     edit_mode = st.toggle("Edit Mode")
 
 all_master = [i for i in st.session_state.shopping_list if i['checked']]
-if search_query:
-    master_items = [i for i in all_master if search_query in i['item'].lower() or search_query in i['category'].lower()]
-else:
-    master_items = all_master
-
+master_items = [i for i in all_master if not search_query or search_query in i['item'].lower() or search_query in i['category'].lower()]
 master_items = sort_by_layout(master_items)
 
 if not master_items:
@@ -164,11 +155,10 @@ if not master_items:
 else:
     for entry in master_items:
         label = f"**{entry['item']}** — {entry['category']}"
-        
         if edit_mode:
             c_item, c_del = st.columns([0.85, 0.15])
             with c_item:
-                if not st.checkbox(label, value=True, key=f"m_edit_{entry['item']}"):
+                if not st.checkbox(label, value=True, key=f"m_ed_{entry['item']}"):
                     entry['checked'] = False
                     save_data(); st.rerun()
             with c_del:
@@ -176,7 +166,7 @@ else:
                     st.session_state.shopping_list = [i for i in st.session_state.shopping_list if i != entry]
                     save_data(); st.rerun()
         else:
-            if not st.checkbox(label, value=True, key=f"m_view_{entry['item']}"):
+            if not st.checkbox(label, value=True, key=f"m_vw_{entry['item']}"):
                 entry['checked'] = False
                 save_data(); st.rerun()
 
@@ -185,5 +175,4 @@ if st.session_state.shopping_list:
     st.divider()
     if st.button("🗑️ Clear Everything", use_container_width=True):
         st.session_state.shopping_list = []
-        save_data()
-        st.rerun()
+        save_data(); st.rerun()
