@@ -46,30 +46,34 @@ st.markdown("""
     input { -webkit-user-select: text !important; user-select: text !important; }
     footer, header, #MainMenu { visibility: hidden; }
 
-    /* Only the Master Rows get the special "No-Stack" horizontal logic */
+    /* Force Master Row to stay horizontal and tight */
     .master-row [data-testid="stHorizontalBlock"] {
         flex-wrap: nowrap !important;
         align-items: center !important;
-        gap: 5px !important;
+        gap: 0px !important;
     }
+    
     .master-row [data-testid="column"] {
         min-width: 0 !important;
-        flex: unset !important;
     }
 
-    /* Standard checkbox styling */
+    /* Small, rounder delete button to ensure it fits the row */
+    .master-row button {
+        width: 35px !important;
+        height: 35px !important;
+        padding: 0 !important;
+        line-height: 35px !important;
+        border-radius: 50% !important;
+    }
+
     .stCheckbox label p { 
         font-size: 1.1rem !important; 
         margin-bottom: 0px !important; 
     }
     
-    /* Tighten vertical spacing between checkboxes */
     .stCheckbox {
-        margin-bottom: -12px !important;
+        margin-bottom: -10px !important;
     }
-
-    /* Delete button styling */
-    .stButton button { padding: 0 !important; height: 2.2em; border-radius: 6px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -94,7 +98,7 @@ with st.expander("➕ Add New Item", expanded=False):
 def sort_by_layout(items):
     return sorted(items, key=lambda x: current_layout.index(x['category']) if x['category'] in current_layout else 999)
 
-# --- 7. DISPLAY: TODAY (Compact Vertical List) ---
+# --- 7. DISPLAY: TODAY ---
 st.header("📍 Today")
 today_items = sort_by_layout([i for i in st.session_state.shopping_list if not i['checked']])
 
@@ -102,14 +106,13 @@ if not today_items:
     st.info("Basket is empty.")
 else:
     for entry in today_items:
-        # No columns, no extra divs. Pure compact checkbox.
         label = f"**{entry['item']}** — {entry['category']}"
         if st.checkbox(label, value=False, key=f"today_{entry['item']}"):
             entry['checked'] = True
             save_data()
             st.rerun()
 
-# --- 8. DISPLAY: MASTER (Horizontal Rows for X button) ---
+# --- 8. DISPLAY: MASTER (No strikethrough + Same line X) ---
 st.header("🏁 Master")
 search_query = st.text_input("🔍 Search Master List", placeholder="Type...").lower()
 
@@ -125,23 +128,23 @@ if not master_items:
     st.caption("No items found.")
 else:
     for entry in master_items:
-        # We only apply the "master-row" class here
         st.markdown('<div class="master-row">', unsafe_allow_html=True)
-        c_item, c_del = st.columns([0.88, 0.12])
+        # 80/20 split is safer for the X button
+        c_item, c_del = st.columns([0.8, 0.2])
         with c_item:
-            label = f"~~**{entry['item']}** — {entry['category']}~~"
+            # Removed the ~~ characters here to remove strikethrough
+            label = f"**{entry['item']}** — {entry['category']}"
             if not st.checkbox(label, value=True, key=f"m_chk_{entry['item']}"):
                 entry['checked'] = False
                 save_data(); st.rerun()
         with c_del:
-            if st.button("❌", key=f"m_del_{entry['item']}", use_container_width=True):
+            if st.button("❌", key=f"m_del_{entry['item']}"):
                 st.session_state.shopping_list = [i for i in st.session_state.shopping_list if i != entry]
                 save_data(); st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 9. CLEAR ALL ---
 if st.session_state.shopping_list:
-    st.write("") 
     st.divider()
     if st.button("🗑️ Clear Everything", use_container_width=True):
         st.session_state.shopping_list = []
