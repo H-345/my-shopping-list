@@ -46,31 +46,47 @@ st.markdown("""
     input { -webkit-user-select: text !important; user-select: text !important; }
     footer, header, #MainMenu { visibility: hidden; }
 
-    /* Force Master Row to stay horizontal and tight */
+    /* ABSOLUTE FORCE: Keep Master Row horizontal */
     .master-row [data-testid="stHorizontalBlock"] {
+        flex-direction: row !important;
         flex-wrap: nowrap !important;
         align-items: center !important;
         gap: 0px !important;
     }
     
-    .master-row [data-testid="column"] {
+    /* Column 1 (Checkbox): Takes up remaining space */
+    .master-row [data-testid="column"]:nth-of-type(1) {
+        flex: 1 1 auto !important;
+        width: auto !important;
         min-width: 0 !important;
     }
 
-    /* Small, rounder delete button to ensure it fits the row */
-    .master-row button {
+    /* Column 2 (Delete Button): Locked to exactly 35px */
+    .master-row [data-testid="column"]:nth-of-type(2) {
+        flex: 0 0 35px !important;
         width: 35px !important;
-        height: 35px !important;
-        padding: 0 !important;
-        line-height: 35px !important;
-        border-radius: 50% !important;
+        min-width: 35px !important;
+        padding-left: 5px !important;
     }
 
+    /* The 'X' Button: Make it much smaller */
+    .master-row button {
+        width: 24px !important;
+        height: 24px !important;
+        min-height: 24px !important;
+        padding: 0 !important;
+        font-size: 12px !important;
+        border-radius: 4px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    /* Checkbox spacing */
     .stCheckbox label p { 
         font-size: 1.1rem !important; 
         margin-bottom: 0px !important; 
     }
-    
     .stCheckbox {
         margin-bottom: -10px !important;
     }
@@ -112,7 +128,7 @@ else:
             save_data()
             st.rerun()
 
-# --- 8. DISPLAY: MASTER (No strikethrough + Same line X) ---
+# --- 8. DISPLAY: MASTER ---
 st.header("🏁 Master")
 search_query = st.text_input("🔍 Search Master List", placeholder="Type...").lower()
 
@@ -129,18 +145,21 @@ if not master_items:
 else:
     for entry in master_items:
         st.markdown('<div class="master-row">', unsafe_allow_html=True)
-        # 80/20 split is safer for the X button
-        c_item, c_del = st.columns([0.8, 0.2])
+        # The CSS above now strictly controls the width of these columns,
+        # so the ratio we pass here is mostly ignored.
+        c_item, c_del = st.columns([0.85, 0.15])
+        
         with c_item:
-            # Removed the ~~ characters here to remove strikethrough
             label = f"**{entry['item']}** — {entry['category']}"
             if not st.checkbox(label, value=True, key=f"m_chk_{entry['item']}"):
                 entry['checked'] = False
                 save_data(); st.rerun()
+                
         with c_del:
             if st.button("❌", key=f"m_del_{entry['item']}"):
                 st.session_state.shopping_list = [i for i in st.session_state.shopping_list if i != entry]
                 save_data(); st.rerun()
+                
         st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 9. CLEAR ALL ---
