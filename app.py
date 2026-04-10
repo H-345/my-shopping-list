@@ -41,23 +41,35 @@ st.set_page_config(page_title="NZ Smart Shop", page_icon="🛒")
 
 st.markdown("""
     <style>
-    /* Global Mobile Tweaks */
+    /* Global Cleanliness */
     * { -webkit-user-select: none; user-select: none; }
     input { -webkit-user-select: text !important; user-select: text !important; }
     footer, header, #MainMenu { visibility: hidden; }
 
-    /* The "Shopping Row" keeps checkbox and X on one line */
-    .shopping-row [data-testid="stHorizontalBlock"] {
+    /* Only the Master Rows get the special "No-Stack" horizontal logic */
+    .master-row [data-testid="stHorizontalBlock"] {
         flex-wrap: nowrap !important;
         align-items: center !important;
-        gap: 0px !important;
+        gap: 5px !important;
     }
-    .shopping-row [data-testid="column"] {
+    .master-row [data-testid="column"] {
         min-width: 0 !important;
+        flex: unset !important;
     }
 
-    .stCheckbox label p { font-size: 1.1rem !important; }
-    .stButton button { padding: 0 !important; height: 2.5em; border-radius: 8px; }
+    /* Standard checkbox styling */
+    .stCheckbox label p { 
+        font-size: 1.1rem !important; 
+        margin-bottom: 0px !important; 
+    }
+    
+    /* Tighten vertical spacing between checkboxes */
+    .stCheckbox {
+        margin-bottom: -12px !important;
+    }
+
+    /* Delete button styling */
+    .stButton button { padding: 0 !important; height: 2.2em; border-radius: 6px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -82,7 +94,7 @@ with st.expander("➕ Add New Item", expanded=False):
 def sort_by_layout(items):
     return sorted(items, key=lambda x: current_layout.index(x['category']) if x['category'] in current_layout else 999)
 
-# --- 7. DISPLAY: TODAY ---
+# --- 7. DISPLAY: TODAY (Compact Vertical List) ---
 st.header("📍 Today")
 today_items = sort_by_layout([i for i in st.session_state.shopping_list if not i['checked']])
 
@@ -90,16 +102,14 @@ if not today_items:
     st.info("Basket is empty.")
 else:
     for entry in today_items:
-        # We wrap each individual row to keep it safe
-        st.markdown('<div class="shopping-row">', unsafe_allow_html=True)
+        # No columns, no extra divs. Pure compact checkbox.
         label = f"**{entry['item']}** — {entry['category']}"
         if st.checkbox(label, value=False, key=f"today_{entry['item']}"):
             entry['checked'] = True
             save_data()
             st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 8. DISPLAY: MASTER ---
+# --- 8. DISPLAY: MASTER (Horizontal Rows for X button) ---
 st.header("🏁 Master")
 search_query = st.text_input("🔍 Search Master List", placeholder="Type...").lower()
 
@@ -115,24 +125,24 @@ if not master_items:
     st.caption("No items found.")
 else:
     for entry in master_items:
-        st.markdown('<div class="shopping-row">', unsafe_allow_html=True)
-        col_item, col_del = st.columns([0.85, 0.15])
-        with col_item:
+        # We only apply the "master-row" class here
+        st.markdown('<div class="master-row">', unsafe_allow_html=True)
+        c_item, c_del = st.columns([0.88, 0.12])
+        with c_item:
             label = f"~~**{entry['item']}** — {entry['category']}~~"
             if not st.checkbox(label, value=True, key=f"m_chk_{entry['item']}"):
                 entry['checked'] = False
                 save_data(); st.rerun()
-        with col_del:
+        with c_del:
             if st.button("❌", key=f"m_del_{entry['item']}", use_container_width=True):
                 st.session_state.shopping_list = [i for i in st.session_state.shopping_list if i != entry]
                 save_data(); st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 9. CLEAR ALL (Fixed Placement) ---
+# --- 9. CLEAR ALL ---
 if st.session_state.shopping_list:
-    st.write("") # Spacer
+    st.write("") 
     st.divider()
-    # Button is OUTSIDE of any 'shopping-row' div to prevent layout errors
     if st.button("🗑️ Clear Everything", use_container_width=True):
         st.session_state.shopping_list = []
         save_data()
