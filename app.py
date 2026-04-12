@@ -7,9 +7,9 @@ from datetime import datetime
 
 # --- 1. CONFIGURATION ---
 STORE_LAYOUTS = {
-    "New World (Milford)": ["Fruit & Veg", "Fish", "Deli", "Bakery", "Meat", "Specialty", "Eggs", "Bread", "Baking", "Crackers", "Soft Drinks", "Canned Goods", "Pasta/Rice", "Sauces", "Oils", "Toiletries", "Cat", "Household", "Milk", "Dairy", "Dips", "Frozen", "Alcohol"],
-    "Pack N Save (Wairau)": ["Fruit & Veg", "Fish", "Dairy", "Dips", "Meat", "Deli", "Bakery", "Milk", "Soft Drinks", "Bread", "Eggs", "Toiletries", "Baking", "Crackers", "Canned Goods", "Pasta/Rice", "Sauces", "Oils", "Household", "Cat", "Alcohol", "Frozen", "Specialty"],
-    "Woolworths (Milford)": ["Fruit & Veg", "Alcohol", "Bakery", "Deli", "Bread", "Fish", "Meat", "Soft Drinks", "Crackers", "Canned Goods", "Pasta/Rice", "Sauces", "Oils", "Toiletries", "Milk", "Cat", "Eggs", "Baking", "Household", "Dairy", "Dips", "Frozen", "Specialty"]
+    "New World (Milford)": ["Fruit & Veg", "Fish", "Deli", "Bakery", "Meat", "Specialty", "Eggs", "Bread", "Baking", "Crackers", "Chips", "Soft Drinks", "Nuts", "Canned Goods", "Pasta/Rice", "Sauces", "Oils", "Toiletries", "Cat", "Household", "Milk", "Dairy", "Dips", "Frozen", "Alcohol"],
+    "Pack N Save (Wairau)": ["Fruit & Veg", "Fish", "Dairy", "Dips", "Meat", "Deli", "Bakery", "Milk", "Soft Drinks", "Bread", "Eggs", "Toiletries", "Baking", "Crackers", "Canned Goods", "Pasta/Rice", "Sauces", "Oils", "Household", "Cat", "Chips", "Nuts", "Alcohol", "Frozen", "Specialty"],
+    "Woolworths (Milford)": ["Fruit & Veg", "Alcohol", "Bakery", "Deli", "Nuts", "Bread", "Fish", "Meat", "Soft Drinks", "Chips", "Crackers", "Canned Goods", "Pasta/Rice", "Sauces", "Oils", "Toiletries", "Milk", "Cat", "Eggs", "Baking", "Household", "Dairy", "Dips", "Frozen", "Specialty"]
 }
 
 FILE_NAME = "shopping_data.json"
