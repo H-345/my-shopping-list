@@ -55,9 +55,9 @@ def add_item_callback():
         st.session_state.item_input_box = ""
 
 def force_reload():
-    # Complete scrub of session state to fix any sync issues
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
+    # Only clear the shopping list so it fetches fresh from the file, don't wipe the whole state
+    if 'shopping_list' in st.session_state:
+        del st.session_state.shopping_list
     st.toast("App Reset & Reloaded")
 
 # --- 4. APP SETUP & STYLING ---
@@ -97,7 +97,6 @@ if not today_sorted:
     st.info("Basket is empty.")
 else:
     for entry in today_sorted:
-        # Key is independent of store choice to prevent jumping to Master
         if st.checkbox(f"**{entry['item']}** — {entry['category']}", key=f"t_chk_{entry['id']}", value=False):
             entry['checked'] = True
             save_data()
@@ -140,23 +139,30 @@ else:
 st.divider()
 with st.expander("🛠️ Backup & Restore"):
     up = st.file_uploader("Upload Backup (.json)", type="json")
+    
+    # THE FIX: Require a button click to actually process the file
     if up is not None:
-        try:
-            raw_bytes = up.read()
-            imported_data = json.loads(raw_bytes)
-            if isinstance(imported_data, list):
-                # 1. Save to physical file
-                with open(FILE_NAME, "w") as f:
-                    json.dump(imported_data, f, indent=2)
-                # 2. Scrub session memory to prevent ID/Checkbox conflicts
-                for key in list(st.session_state.keys()):
-                    del st.session_state[key]
-                st.success("List Restored!")
-                st.button("Finalize Restore") # Forces fresh load of the new file
-            else:
-                st.error("Invalid format.")
-        except:
-            st.error("Read Error")
+        if st.button("🚨 Confirm Restore (Overwrites Current)", use_container_width=True):
+            try:
+                # getvalue() reads the file safely without breaking on subsequent reruns
+                raw_bytes = up.getvalue()
+                imported_data = json.loads(raw_bytes)
+                
+                if isinstance(imported_data, list):
+                    st.session_state.shopping_list = imported_data
+                    save_data()
+                    
+                    # Targeted scrub: Only delete the old checkbox memory, leave the store selectors alone
+                    for key in list(st.session_state.keys()):
+                        if key.startswith(('t_chk_', 'me_chk_', 'mv_chk_')):
+                            del st.session_state[key]
+                            
+                    st.success("✅ Restored! You can now click the 'X' on the file uploader to clear it.")
+                    st.rerun()
+                else:
+                    st.error("Invalid format.")
+            except Exception as e:
+                st.error(f"Read Error: {e}")
 
     # Prepared JSON string for download
     try:
