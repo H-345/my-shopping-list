@@ -2,6 +2,7 @@ import streamlit as st
 import json
 import os
 import base64
+import uuid # Added for unique IDs
 from datetime import datetime
 
 # --- 1. CONFIGURATION ---
@@ -19,16 +20,21 @@ def load_data():
         try:
             with open(FILE_NAME, "r") as f:
                 data = json.load(f)
-                return data if isinstance(data, list) else []
-        except: return []
+                # Ensure every item has a unique ID (for older backups)
+                if isinstance(data, list):
+                    for item in data:
+                        if "id" not in item:
+                            item["id"] = str(uuid.uuid4())[:8]
+                    return data
+        except: pass
     return []
 
 def save_data():
     try:
         with open(FILE_NAME, "w") as f:
-            json.dump(st.session_state.shopping_list, f)
+            json.dump(st.session_state.shopping_list, f, indent=2)
     except:
-        st.error("Internal save failed.")
+        st.error("Save failed.")
 
 def get_image_html(image_path):
     if os.path.exists(image_path):
@@ -42,34 +48,36 @@ def add_item_callback():
     item_val = st.session_state.get("item_input_box", "").strip()
     cat_val = st.session_state.get("item_category_box", "")
     if item_val:
-        st.session_state.shopping_list.append({"item": item_val, "category": cat_val, "checked": False})
+        # Assign a unique ID immediately
+        new_item = {
+            "id": str(uuid.uuid4())[:8], 
+            "item": item_val, 
+            "category": cat_val, 
+            "checked": False
+        }
+        st.session_state.shopping_list.append(new_item)
         save_data()
         st.session_state.item_input_box = ""
 
-# --- 4. APP SETUP ---
+# --- 4. SETUP ---
 st.set_page_config(page_title="NZ Smart Shop", page_icon="🛒")
-
-st.markdown(f"""
-    <style>
-    .stApp {{ background-color: #f1efea; }}
-    footer, header, #MainMenu {{ visibility: hidden; }}
-    .section-container {{ display: flex; align-items: center; gap: 10px; margin-top: 25px; margin-bottom: 12px; }}
-    .section-title {{ font-size: 24px !important; font-weight: 700; color: #31333F; }}
-    .stCheckbox label p {{ font-size: 1.15rem !important; }}
-    .stButton button {{ border-radius: 8px; }}
-    </style>
-""", unsafe_allow_html=True)
+st.markdown("""<style>
+    .stApp { background-color: #f1efea; }
+    footer, header, #MainMenu { visibility: hidden; }
+    .section-container { display: flex; align-items: center; gap: 10px; margin-top: 20px; }
+    .section-title { font-size: 24px !important; font-weight: 700; color: #31333F; }
+    .stButton button { border-radius: 8px; }
+</style>""", unsafe_allow_html=True)
 
 if 'shopping_list' not in st.session_state:
     st.session_state.shopping_list = load_data()
 
-# --- 5. STORE SELECT ---
-st.markdown(f'<div class="section-container">{get_image_html("Cart.png")}<p class="section-title">Where are you today?</p></div>', unsafe_allow_html=True)
-store_choice = st.selectbox("Store Select", list(STORE_LAYOUTS.keys()), label_visibility="collapsed")
+# --- 5. STORE & ADD ---
+st.markdown(f'<div class="section-container">{get_image_html("Cart.png")}<p class="section-title">Store Select</p></div>', unsafe_allow_html=True)
+store_choice = st.selectbox("Store", list(STORE_LAYOUTS.keys()), label_visibility="collapsed")
 current_layout = STORE_LAYOUTS[store_choice]
 
-# --- 6. ADD ITEM ---
-with st.expander("➕ Add New Item", expanded=False):
+with st.expander("➕ Add New Item"):
     st.text_input("Item Name", key="item_input_box")
     st.selectbox("Aisle", current_layout, key="item_category_box")
     st.button("Add to List", on_click=add_item_callback, use_container_width=True)
@@ -77,7 +85,7 @@ with st.expander("➕ Add New Item", expanded=False):
 def sort_by_layout(items):
     return sorted(items, key=lambda x: current_layout.index(x['category']) if x['category'] in current_layout else 999)
 
-# --- 7. TODAY ---
+# --- 6. TODAY LIST ---
 st.markdown(f'<div class="section-container">{get_image_html("Today.png")}<p class="section-title">Today</p></div>', unsafe_allow_html=True)
 today_items = sort_by_layout([i for i in st.session_state.shopping_list if not i.get('checked', False)])
 
@@ -85,76 +93,54 @@ if not today_items:
     st.info("Basket is empty.")
 else:
     for entry in today_items:
-        # Checkbox keys need to be unique but also handle symbols/spaces
-        c_key = f"t_{entry['item']}_{entry['category']}".replace(" ", "_")
-        if st.checkbox(f"**{entry['item']}** — {entry['category']}", key=c_key):
+        # Use the unique ID for the key to prevent crashes
+        if st.checkbox(f"**{entry['item']}** — {entry['category']}", key=f"t_{entry['id']}"):
             entry['checked'] = True
             save_data(); st.rerun()
 
-# --- 8. MASTER ---
+# --- 7. MASTER LIST ---
 st.markdown(f'<div class="section-container">{get_image_html("Master.png")}<p class="section-title">Master</p></div>', unsafe_allow_html=True)
-col_search, col_edit = st.columns([0.65, 0.35])
-with col_search:
-    q = st.text_input("Search", placeholder="Type...", label_visibility="collapsed").lower()
-with col_edit:
+col_q, col_ed = st.columns([0.7, 0.3])
+with col_q:
+    q = st.text_input("Search Master", placeholder="Search...", label_visibility="collapsed").lower()
+with col_ed:
     edit_mode = st.toggle("Edit")
 
-all_master = [i for i in st.session_state.shopping_list if i.get('checked', False)]
-master_items = [i for i in all_master if not q or q in i['item'].lower()]
+master_items = [i for i in st.session_state.shopping_list if i.get('checked', False)]
+if q:
+    master_items = [i for i in master_items if q in i['item'].lower()]
 master_items = sort_by_layout(master_items)
 
-if not master_items:
-    st.caption("No history.")
-else:
-    for entry in master_items:
-        label = f"**{entry['item']}** — {entry['category']}"
-        m_key = f"m_{entry['item']}_{entry['category']}".replace(" ", "_")
-        if edit_mode:
-            c_item, c_del = st.columns([0.85, 0.15])
-            with c_item:
-                if not st.checkbox(label, value=True, key=f"ed_{m_key}"):
-                    entry['checked'] = False
-                    save_data(); st.rerun()
-            with c_del:
-                if st.button("❌", key=f"del_{m_key}", use_container_width=True):
-                    st.session_state.shopping_list = [i for i in st.session_state.shopping_list if i != entry]
-                    save_data(); st.rerun()
-        else:
-            if not st.checkbox(label, value=True, key=f"vw_{m_key}"):
+for entry in master_items:
+    label = f"**{entry['item']}** — {entry['category']}"
+    if edit_mode:
+        c1, c2 = st.columns([0.8, 0.2])
+        with c1:
+            if not st.checkbox(label, value=True, key=f"e_{entry['id']}"):
                 entry['checked'] = False
                 save_data(); st.rerun()
+        with c2:
+            if st.button("❌", key=f"d_{entry['id']}"):
+                st.session_state.shopping_list = [i for i in st.session_state.shopping_list if i['id'] != entry['id']]
+                save_data(); st.rerun()
+    else:
+        if not st.checkbox(label, value=True, key=f"v_{entry['id']}"):
+            entry['checked'] = False
+            save_data(); st.rerun()
 
-# --- 9. BACKUP / RESTORE TOOLS ---
+# --- 8. TOOLS ---
 st.divider()
 with st.expander("🛠️ Backup & Restore"):
-    # REVISED RESTORE: More robust error handling
-    uploaded_file = st.file_uploader("Upload Backup (.json)", type="json")
-    if uploaded_file:
-        try:
-            new_data = json.load(uploaded_file)
-            if isinstance(new_data, list):
-                st.session_state.shopping_list = new_data
-                save_data()
-                st.success("List Restored!")
-                st.button("Click to Refresh App", on_click=lambda: None) 
-            else:
-                st.error("File format incorrect.")
-        except Exception as e:
-            st.error(f"Error reading file: {e}")
-
-    # DOWNLOAD: Indented JSON is easier for the app to read back
-    backup_str = json.dumps(st.session_state.shopping_list, indent=2)
-    st.download_button(
-        label="💾 Save Backup to Phone",
-        data=backup_str,
-        file_name=f"shop_list_{datetime.now().strftime('%m%d')}.json",
-        mime="application/json",
-        use_container_width=True
-    )
-
-    if st.button("🗑️ Reset Everything", use_container_width=True):
+    up = st.file_uploader("Upload Backup", type="json")
+    if up:
+        st.session_state.shopping_list = json.load(up)
+        save_data(); st.rerun()
+    
+    st.download_button("💾 Download Backup", data=json.dumps(st.session_state.shopping_list, indent=2), 
+                       file_name=f"shop_bak_{datetime.now().strftime('%m%d')}.json", use_container_width=True)
+    
+    if st.button("🗑️ Reset All"):
         st.session_state.shopping_list = []
         save_data(); st.rerun()
 
-# --- 10. HOME BUTTON (Escape Hatch) ---
 st.button("🏠 Refresh App", use_container_width=True)
