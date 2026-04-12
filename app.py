@@ -2,6 +2,7 @@ import streamlit as st
 import json
 import os
 import base64
+from datetime import datetime
 
 # --- 1. CONFIGURATION ---
 STORE_LAYOUTS = {
@@ -45,21 +46,17 @@ def get_image_html(image_path):
         return f'<img src="data:image/png;base64,{data_url}" width="30">'
     return "🛒"
 
-# --- 3. THE CALLBACK (The Reset Logic) ---
+# --- 3. CALLBACKS ---
 def add_item_callback():
-    # Grab the values directly from session state keys
     new_item_val = st.session_state.get("item_input_box", "").strip()
     category_val = st.session_state.get("item_category_box", "")
-    
     if new_item_val:
-        # Add to the list
         st.session_state.shopping_list.append({
             "item": new_item_val, 
             "category": category_val, 
             "checked": False
         })
         save_data()
-        # CLEAR the input box in state
         st.session_state.item_input_box = ""
 
 # --- 4. APP SETUP & STYLING ---
@@ -88,11 +85,8 @@ current_layout = STORE_LAYOUTS[store_choice]
 
 # --- 6. ADD ITEM SECTION ---
 with st.expander("➕ Add New Item", expanded=False):
-    # Linking these widgets to keys so the callback can see/clear them
     st.text_input("Item Name", key="item_input_box")
     st.selectbox("Aisle", current_layout, key="item_category_box")
-    
-    # on_click runs the function BEFORE the page reloads
     st.button("Add to List", on_click=add_item_callback, use_container_width=True)
 
 # --- 7. SORTING ---
@@ -101,8 +95,6 @@ def sort_by_layout(items):
 
 # --- 8. DISPLAY: TODAY ---
 st.markdown(f'''<div class="section-container">{get_image_html("Today.png")}<p class="section-title">Today</p></div>''', unsafe_allow_html=True)
-
-# Safety check for 'checked' key existence
 today_items = sort_by_layout([i for i in st.session_state.shopping_list if not i.get('checked', False)])
 
 if not today_items:
@@ -112,19 +104,15 @@ else:
         label = f"**{entry['item']}** — {entry['category']}"
         if st.checkbox(label, value=False, key=f"today_{entry['item']}"):
             entry['checked'] = True
-            save_data()
-            st.rerun()
+            save_data(); st.rerun()
 
 # --- 9. DISPLAY: MASTER ---
 st.markdown(f'''<div class="section-container">{get_image_html("Master.png")}<p class="section-title">Master</p></div>''', unsafe_allow_html=True)
-
 col_search, col_edit = st.columns([0.65, 0.35])
 with col_search:
     search_query = st.text_input("Search", placeholder="Type...", label_visibility="collapsed").lower()
 with col_edit:
-    st.markdown('<div style="margin-top: 5px;">', unsafe_allow_html=True)
     edit_mode = st.toggle("Edit Mode")
-    st.markdown('</div>', unsafe_allow_html=True)
 
 all_master = [i for i in st.session_state.shopping_list if i.get('checked', False)]
 master_items = [i for i in all_master if not search_query or search_query in i['item'].lower() or search_query in i['category'].lower()]
@@ -150,9 +138,32 @@ else:
                 entry['checked'] = False
                 save_data(); st.rerun()
 
-# --- 10. CLEAR ALL ---
-if st.session_state.shopping_list:
-    st.divider()
-    if st.button("🗑️ Clear Everything", use_container_width=True):
+# --- 10. BACKUP & UTILITIES ---
+st.divider()
+with st.expander("🛠️ App Tools (Backup/Restore)"):
+    
+    # DOWNLOAD BACKUP
+    json_data = json.dumps(st.session_state.shopping_list, indent=2)
+    st.download_button(
+        label="💾 Download Backup to Phone",
+        data=json_data,
+        file_name=f"shopping_backup_{datetime.now().strftime('%Y%m%d')}.json",
+        mime="application/json",
+        use_container_width=True
+    )
+    
+    # RESTORE BACKUP
+    uploaded_file = st.file_uploader("Restore List from File", type="json")
+    if uploaded_file is not None:
+        try:
+            st.session_state.shopping_list = json.load(uploaded_file)
+            save_data()
+            st.success("List Restored! App will refresh...")
+            st.rerun()
+        except:
+            st.error("Could not read backup file.")
+
+    # CLEAR ALL
+    if st.button("🗑️ Reset Everything", use_container_width=True):
         st.session_state.shopping_list = []
         save_data(); st.rerun()
