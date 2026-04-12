@@ -16,30 +16,36 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 
 def load_data():
     try:
-        # ttl=0 ensures we don't use old cached data
         df = conn.read(ttl=0)
-        if df.empty:
+        if df is None or df.empty:
             return []
-        # Ensure 'checked' column exists and is boolean
+        # Cleanup column names and fill missing values
+        df.columns = [str(c).lower().strip() for c in df.columns]
         if 'checked' not in df.columns:
             df['checked'] = False
-        # Fill empty checkmarks with False
         df['checked'] = df['checked'].fillna(False).astype(bool)
         return df.to_dict('records')
-    except Exception as e:
-        # If the sheet is totally new/blank, return empty list instead of crashing
+    except:
         return []
 
 def save_to_sheet(data_list):
-    if not data_list:
-        # Create a blank structure with headers if list is wiped
-        df = pd.DataFrame(columns=["item", "category", "checked"])
-    else:
-        df = pd.DataFrame(data_list)
-    
-    # Crucial: Ensure the column names are exactly what we expect
-    df = df[["item", "category", "checked"]]
-    conn.update(data=df)
+    try:
+        if not data_list:
+            # If empty, create an empty dataframe with the correct headers
+            df = pd.DataFrame(columns=["item", "category", "checked"])
+        else:
+            df = pd.DataFrame(data_list)
+        
+        # Explicitly set columns to avoid schema errors
+        df = df[["item", "category", "checked"]]
+        # Convert all values to strings/bools to avoid JSON serialization errors
+        df['item'] = df['item'].astype(str)
+        df['category'] = df['category'].astype(str)
+        df['checked'] = df['checked'].astype(bool)
+        
+        conn.update(data=df)
+    except Exception as e:
+        st.error(f"Save failed: {e}")
 
 def get_image_html(image_path):
     if os.path.exists(image_path):
@@ -65,7 +71,6 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# LOAD DATA
 if 'shopping_list' not in st.session_state:
     st.session_state.shopping_list = load_data()
 
@@ -76,13 +81,19 @@ current_layout = STORE_LAYOUTS[store_choice]
 
 # --- 5. ADD ITEM ---
 with st.expander("➕ Add New Item", expanded=False):
-    new_item = st.text_input("Item Name", key="new_item_box")
-    category = st.selectbox("Aisle", current_layout)
+    # Use a specific key for the text input
+    new_item_val = st.text_input("Item Name", key="new_item_input")
+    category_val = st.selectbox("Aisle", current_layout)
+    
     if st.button("Add to List", use_container_width=True):
-        if new_item:
-            st.session_state.shopping_list.append({"item": new_item, "category": category, "checked": False})
+        if new_item_val:
+            # Create a clean dictionary
+            new_entry = {"item": str(new_item_val), "category": str(category_val), "checked": False}
+            st.session_state.shopping_list.append(new_entry)
+            
+            # Save and reset
             save_to_sheet(st.session_state.shopping_list)
-            st.session_state.new_item_box = "" # Reset box
+            st.session_state.new_item_input = "" 
             st.rerun()
 
 def sort_by_layout(items):
@@ -111,7 +122,7 @@ with col_edit:
     edit_mode = st.toggle("Edit")
 
 all_master = [i for i in st.session_state.shopping_list if i.get('checked', False)]
-master_items = [i for i in all_master if not search_query or search_query in i['item'].lower() or search_query in i['category'].lower()]
+master_items = [i for i in all_master if not search_query or search_query in str(i['item']).lower() or search_query in str(i['category']).lower()]
 master_items = sort_by_layout(master_items)
 
 if not master_items:
@@ -126,7 +137,8 @@ else:
                     entry['checked'] = False
                     save_to_sheet(st.session_state.shopping_list); st.rerun()
             with c_del:
-                if st.button("❌", key=f"md_{entry['item']}"):
+                # Use container width for better mobile tap target
+                if st.button("❌", key=f"md_{entry['item']}", use_container_width=True):
                     st.session_state.shopping_list = [i for i in st.session_state.shopping_list if i != entry]
                     save_to_sheet(st.session_state.shopping_list); st.rerun()
         else:
