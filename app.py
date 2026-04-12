@@ -29,7 +29,9 @@ def load_data():
     if os.path.exists(FILE_NAME):
         try:
             with open(FILE_NAME, "r") as f:
-                return json.load(f)
+                data = json.load(f)
+                # Defensive check: ensure we are getting a list
+                return data if isinstance(data, list) else []
         except: return []
     return []
 
@@ -50,42 +52,14 @@ st.set_page_config(page_title="NZ Smart Shop", page_icon="🛒")
 
 st.markdown(f"""
     <style>
-    .stApp {{
-        background-color: #f1efea;
-    }}
+    .stApp {{ background-color: #f1efea; }}
     footer, header, #MainMenu {{ visibility: hidden; }}
-
-    /* Unified Section Headers */
-    .section-container {{
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-top: 25px;
-        margin-bottom: 12px !important; /* Fixed spacing for all headers */
-    }}
-    .section-title {{
-        font-size: 24px !important;
-        font-weight: 700;
-        margin: 0 !important;
-        color: #31333F;
-    }}
-
-    /* Remove default top margins from all input widgets to ensure equal spacing */
-    [data-testid="stSelectbox"], [data-testid="stTextInput"], [data-testid="stVerticalBlockBorderWrapper"] {{
-        margin-top: 0px !important;
-    }}
-    
-    .stCheckbox label p {{ 
-        font-size: 1.15rem !important; 
-        margin-bottom: 0px !important; 
-    }}
-    .stCheckbox {{
-        margin-bottom: -12px !important;
-    }}
-
-    .stButton button {{
-        border-radius: 8px;
-    }}
+    .section-container {{ display: flex; align-items: center; gap: 10px; margin-top: 25px; margin-bottom: 12px !important; }}
+    .section-title {{ font-size: 24px !important; font-weight: 700; margin: 0 !important; color: #31333F; }}
+    [data-testid="stSelectbox"], [data-testid="stTextInput"], [data-testid="stVerticalBlockBorderWrapper"] {{ margin-top: 0px !important; }}
+    .stCheckbox label p {{ font-size: 1.15rem !important; margin-bottom: 0px !important; }}
+    .stCheckbox {{ margin-bottom: -12px !important; }}
+    .stButton button {{ border-radius: 8px; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -105,12 +79,16 @@ current_layout = STORE_LAYOUTS[store_choice]
 
 # --- 5. ADD ITEM SECTION ---
 with st.expander("➕ Add New Item", expanded=False):
-    new_item = st.text_input("Item Name")
+    # Added a 'key' here so we can target this specific box
+    new_item = st.text_input("Item Name", key="item_input_box")
     category = st.selectbox("Aisle", current_layout)
+    
     if st.button("Add to List", use_container_width=True):
         if new_item:
             st.session_state.shopping_list.append({"item": new_item, "category": category, "checked": False})
             save_data()
+            # This line clears the box
+            st.session_state.item_input_box = ""
             st.rerun()
 
 # --- 6. SORTING ---
@@ -148,7 +126,6 @@ col_search, col_edit = st.columns([0.65, 0.35])
 with col_search:
     search_query = st.text_input("Search", placeholder="Type...", label_visibility="collapsed").lower()
 with col_edit:
-    # Toggle height alignment
     st.markdown('<div style="margin-top: 5px;">', unsafe_allow_html=True)
     edit_mode = st.toggle("Edit Mode")
     st.markdown('</div>', unsafe_allow_html=True)
