@@ -87,47 +87,59 @@ with st.expander("➕ Add New Item"):
 def sort_by_layout(items):
     return sorted(items, key=lambda x: current_layout.index(x['category']) if x['category'] in current_layout else 999)
 
-# --- 7. TODAY ---
+# --- 7. DISPLAY: TODAY ---
 st.markdown(f'<div class="section-container">{get_image_html("Today.png")}<p class="section-title">Today</p></div>', unsafe_allow_html=True)
-today = sort_by_layout([i for i in st.session_state.shopping_list if not i.get('checked', False)])
 
-if not today:
+# Important: We sort a COPY of the list to prevent the UI from jumping
+today_items = sort_by_layout([i for i in st.session_state.shopping_list if not i.get('checked', False)])
+
+if not today_items:
     st.info("Basket is empty.")
 else:
-    for entry in today:
-        if st.checkbox(f"**{entry['item']}** — {entry['category']}", key=f"t_{entry['id']}"):
+    for entry in today_items:
+        # We add the store_choice to the key so the checkbox is "fresh" for each store
+        unique_key = f"today_{entry['id']}_{store_choice.replace(' ', '_')}"
+        
+        if st.checkbox(f"**{entry['item']}** — {entry['category']}", key=unique_key, value=False):
             entry['checked'] = True
             save_data()
             st.rerun()
 
-# --- 8. MASTER ---
+# --- 8. DISPLAY: MASTER ---
 st.markdown(f'<div class="section-container">{get_image_html("Master.png")}<p class="section-title">Master</p></div>', unsafe_allow_html=True)
 col_search, col_edit = st.columns([0.65, 0.35])
 with col_search:
     q = st.text_input("Search", placeholder="Type...", label_visibility="collapsed", key="m_search").lower()
 with col_edit:
-    edit_mode = st.toggle("Edit")
+    edit_mode = st.toggle("Edit Mode")
 
-master_items = [i for i in st.session_state.shopping_list if i.get('checked', False)]
-if q: master_items = [i for i in master_items if q in i['item'].lower()]
+all_master = [i for i in st.session_state.shopping_list if i.get('checked', False)]
+master_items = [i for i in all_master if not q or q in i['item'].lower()]
 master_items = sort_by_layout(master_items)
 
-for entry in master_items:
-    label = f"**{entry['item']}** — {entry['category']}"
-    if edit_mode:
-        c1, c2 = st.columns([0.85, 0.15])
-        with c1:
-            if not st.checkbox(label, value=True, key=f"me_{entry['id']}"):
+if not master_items:
+    st.caption("No history found.")
+else:
+    for entry in master_items:
+        label = f"**{entry['item']}** — {entry['category']}"
+        # Unique key includes store so toggling stores doesn't break the Master check
+        master_key = f"master_{entry['id']}_{store_choice.replace(' ', '_')}"
+        
+        if edit_mode:
+            c1, c2 = st.columns([0.85, 0.15])
+            with c1:
+                # Value is True because it's in Master
+                if not st.checkbox(label, value=True, key=f"ed_{master_key}"):
+                    entry['checked'] = False
+                    save_data(); st.rerun()
+            with c2:
+                if st.button("❌", key=f"del_{entry['id']}", use_container_width=True):
+                    st.session_state.shopping_list = [i for i in st.session_state.shopping_list if i['id'] != entry['id']]
+                    save_data(); st.rerun()
+        else:
+            if not st.checkbox(label, value=True, key=f"vw_{master_key}"):
                 entry['checked'] = False
                 save_data(); st.rerun()
-        with c2:
-            if st.button("❌", key=f"del_{entry['id']}", use_container_width=True):
-                st.session_state.shopping_list = [i for i in st.session_state.shopping_list if i['id'] != entry['id']]
-                save_data(); st.rerun()
-    else:
-        if not st.checkbox(label, value=True, key=f"mv_{entry['id']}"):
-            entry['checked'] = False
-            save_data(); st.rerun()
 
 # --- 9. CLEAN TOOLS (NO ERRORS) ---
 st.divider()
