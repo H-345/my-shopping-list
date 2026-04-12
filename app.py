@@ -128,19 +128,42 @@ for entry in master_items:
             entry['checked'] = False
             save_data(); st.rerun()
 
-# --- 8. TOOLS ---
+# --- 8. TOOLS (REVISED RESTORE) ---
 st.divider()
 with st.expander("🛠️ Backup & Restore"):
-    up = st.file_uploader("Upload Backup", type="json")
+    # RESTORE LOGIC
+    up = st.file_uploader("Upload Backup (.json)", type="json")
     if up:
-        st.session_state.shopping_list = json.load(up)
-        save_data(); st.rerun()
+        try:
+            # 1. Peek at the data first
+            new_data = json.load(up)
+            if isinstance(new_data, list):
+                # 2. Update the local file on the server first
+                with open(FILE_NAME, "w") as f:
+                    json.dump(new_data, f, indent=2)
+                
+                # 3. Wipe the current session memory so it's forced to reload
+                del st.session_state.shopping_list
+                
+                st.success("Backup loaded successfully!")
+                st.button("Click to Finalize Restore", on_click=lambda: None)
+            else:
+                st.error("Invalid file format. Must be a list.")
+        except Exception as e:
+            st.error(f"Error reading backup: {e}")
     
-    st.download_button("💾 Download Backup", data=json.dumps(st.session_state.shopping_list, indent=2), 
-                       file_name=f"shop_bak_{datetime.now().strftime('%m%d')}.json", use_container_width=True)
+    # DOWNLOAD LOGIC
+    st.download_button(
+        label="💾 Download Backup", 
+        data=json.dumps(st.session_state.shopping_list, indent=2), 
+        file_name=f"shop_bak_{datetime.now().strftime('%m%d')}.json", 
+        use_container_width=True
+    )
     
-    if st.button("🗑️ Reset All"):
+    if st.button("🗑️ Reset All", use_container_width=True):
         st.session_state.shopping_list = []
-        save_data(); st.rerun()
+        save_data()
+        st.rerun()
 
+st.button("🏠 Refresh App", use_container_width=True)
 st.button("🏠 Refresh App", use_container_width=True)
